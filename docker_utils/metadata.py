@@ -288,12 +288,12 @@ class Pull(object):
         self.force = kwargs['force']
         self.directory = kwargs['directory']
         self.outfile = kwargs['outfile']
+        self.url = kwargs['url']
         self.response = None
 
-    def get_url_filename(self):
-        import cgi
-        _, params = cgi.parse_header(self.response.headers.get('Content-Disposition', ''))
-        return params['filename']
+    @property
+    def url_filename(self):
+        return self.url.split('/')[-1]
 
     @property
     def outname(self):
@@ -301,15 +301,15 @@ class Pull(object):
         if self.outfile:
             filename = self.outfile
         else:
-            filename = self.get_url_filename()
+            filename = self.url_filename
         if not self.directory:
             return "{0}/{1}".format(USER_TEMPLATE_DIR, filename)
         else:
             return "{0}/{1}".format(self.directory, filename)
 
-    def pull_url(self, url):
+    def pull_url(self):
         from urllib2 import Request, urlopen, URLError
-        req = Request(url)
+        req = Request(self.url)
         try:
             response = urlopen(req)
         except URLError as e:

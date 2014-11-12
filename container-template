@@ -73,9 +73,10 @@ def main():
     elif args.action in "pull":
         kwargs = {'outfile': args.name,
                   'directory': args.directory,
-                  'force': args.force}
+                  'force': args.force,
+                  'url': args.url}
         fetch = metadata.Pull(**kwargs)
-        fetch.pull_url(args.url)
+        fetch.pull_url()
 
 if __name__ == '__main__':
     main()
