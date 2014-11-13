@@ -24,7 +24,7 @@ import docker
 
 USER_TEMPLATE_DIR = "/var/container-template/user/"
 SYSTEM_TEMPLATE_DIR = "/var/container-template/system/"
-
+CONTAINER_METADATA_DIR = "/container-metadata"
 
 class Create(object):
     def __init__(self, **kwargs):
@@ -336,3 +336,50 @@ class Pull(object):
                 outfile.write(self.response.read())
             outfile.closed
             print self.outname
+
+class Deploy(object):
+    def __init__(self, **kwargs):
+        self.image = kwargs['image']
+        self.metafile = kwargs['metafile']
+        self.client = docker.Client(base_url='unix://var/run/docker.sock', version='1.12', timeout=10)
+
+    def pull(self):
+        for line in self.client.pull(repository=self.image, stream=True):
+            j = json.loads(line)
+            if not "errorDetail" in j.keys():
+                print j['status']
+            else:
+                print j['errorDetail']['message']
+                return False
+
+    def rm_container(self, container):
+        r = self.client.remove_container(container)
+        print r
+
+    def get_file(self):
+        if self.pull():
+            # create the container with a bogus command since it's required
+            container = self.client.create_container(image=self.image, command="bash")
+            response = self.client.copy(container=container['Id'],
+                                  resource=self.container_file)
+            with open(self.installed_file, "w") as outfile:
+                # FIXME: there's a docker-py bug where the initial line has junk in it
+                # we need to remove stuff like...
+                # cockpit.json0100644000000000000000000000456312431134152011600 0ustar0000000000000000[
+                # and remove junk at end of file
+                pattern1 = re.compile(r'^.+\[')
+                pattern2 = re.compile(r'^\].+', re.MULTILINE)
+                text = pattern1.sub('[', response.read(), 1)
+                text = pattern2.sub(']\n', text)
+                outfile.write(text)
+            outfile.closed
+            print "Wrote %s" % self.installed_file
+            self.rm_container(container['Id'])
+
+    @property
+    def container_file(self):
+        return '/'.join([CONTAINER_METADATA_DIR, self.metafile])
+
+    @property
+    def installed_file(self):
+        return '/'.join([SYSTEM_TEMPLATE_DIR, self.metafile])

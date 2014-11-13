@@ -52,6 +52,12 @@ def main():
     pull_parser.add_argument('-f', '--force',
                              action='store_true',
                              help='Overwrite existing metadata file. Defaults to false.')
+    deploy_parser = subparsers.add_parser('deploy', help='Deploy metadata files from a data container')
+    deploy_parser.add_argument('image',
+                             metavar='METADATA/IMAGE',
+                             help='Image with metadata files')
+    deploy_parser.add_argument('run',
+                             help='Run from file in data container')
 
     args = parser.parse_args()
 
@@ -76,6 +82,15 @@ def main():
                   'force': args.force}
         fetch = metadata.Pull(**kwargs)
         fetch.pull_url(args.url)
+    elif args.action in "deploy":
+        kwargs = {'image': args.image,
+                  'metafile': args.run}
+        deploy = metadata.Deploy(**kwargs)
+        deploy.get_file()
+        print "Starting container from %s" % deploy.installed_file
+        run = docker_wrapper.Run(jsonfile=deploy.installed_file)
+        run.start_container()
+
 
 if __name__ == '__main__':
     main()
